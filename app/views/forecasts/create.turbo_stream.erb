@@ -1,0 +1,3 @@
+<%= turbo_stream.update "forecast_result" do %>
+  <%= render partial: "forecast_result", locals: { forecast_data: @forecast_data } %>
+<% end %>

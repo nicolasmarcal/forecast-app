@@ -1,0 +1,12 @@
+<% if forecast_data[:error].present? %>
+  <p style="color: red;"><%= forecast_data[:error] %></p>
+<% else %>
+  <h2>result for: <%= forecast_data[:zip_code] %></h2>
+
+  <% if forecast_data[:from_cache] %>
+    <p style="color: green; font-weight: bold;">Cached result</p>
+  <% end %>
+
+  <p>Forecast data: <%= forecast_data[:data][:temp] %>°</p>
+  <p>Max: <%= forecast_data[:data][:high] %>° | Min: <%= forecast_data[:data][:low] %>°</p>
+<% end %>

@@ -1,0 +1,19 @@
+<%= form_with model: forecast_request, url: forecast_path do |f| %>
+  <% if forecast_request.errors.any? %>
+    <div style="color: red">
+      <h2>It wasn't possible to search forecast:</h2>
+      <ul>
+        <% forecast_request.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :zip_code, "Type your zip code here" %>
+    <%= f.text_field :zip_code %>
+  </div>
+
+  <%= f.submit "Search" %>
+<% end %>

@@ -1,0 +1,10 @@
+<h1>Forecasts</h1>
+
+<%= turbo_frame_tag "forecast_form" do %>
+  <%= render "form", forecast_request: @forecast_request %>
+<% end %>
+
+<hr>
+
+<div id="forecast_result">
+</div>

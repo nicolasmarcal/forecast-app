@@ -42,4 +42,25 @@ RSpec.describe "Forecasts System", type: :system do
 
     expect(page).to have_text("It wasn't possible to get forecast: Timeout error.")
   end
+
+  it "shows error message when there's no zip code" do
+    visit root_path
+    fill_in "Type your zip code here", with: ""
+    click_on "Search"
+
+    expect(page).to have_text("Zip code can't be blank")
+  end
+
+  it "clears form errors when data is ok", :vcr do
+    visit root_path
+    fill_in "Type your zip code here", with: ""
+    click_on "Search"
+
+    expect(page).to have_text("Zip code can't be blank")
+
+    fill_in "Type your zip code here", with: "10001"
+    click_on "Search"
+
+    expect(page).not_to have_text("Zip code can't be blank")
+  end
 end

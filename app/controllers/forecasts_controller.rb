@@ -10,7 +10,7 @@ class ForecastsController < ApplicationController
       @forecast_data = WeatherService.new(@forecast_request.zip_code).call
 
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 

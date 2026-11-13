@@ -1,7 +1,7 @@
 <% if forecast_data[:error].present? %>
   <p style="color: red;"><%= forecast_data[:error] %></p>
 <% else %>
-  <h2>result for: <%= forecast_data[:zip_code] %></h2>
+  <h2>Result for: <%= forecast_data[:zip_code] %></h2>
 
   <% if forecast_data[:from_cache] %>
     <p style="color: green; font-weight: bold;">Cached result</p>

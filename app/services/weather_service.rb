@@ -2,12 +2,12 @@ require "net/http"
 require "json"
 
 class WeatherService
-  def initialize(zipcode)
-    @zipcode = zipcode
+  def initialize(zip_code)
+    @zip_code = zip_code
   end
 
   def call
-    cache_key = "weather-#{@zipcode}"
+    cache_key = "weather-#{@zip_code}"
 
     is_cached = Rails.cache.exist?(cache_key)
 
@@ -18,7 +18,8 @@ class WeatherService
     {
       data: data,
       from_cache: is_cached,
-      error: nil
+      error: nil,
+      zip_code: @zip_code
     }
   rescue StandardError => e
     { data: nil, from_cache: false, error: "It wasn't possible to get forecast: #{e.message}" }
@@ -32,7 +33,7 @@ class WeatherService
     uri = URI(api_config[:base_url])
     uri.query = URI.encode_www_form({
                                       key: api_config[:key],
-                                      q: @zipcode,
+                                      q: @zip_code,
                                       days: 1
                                     })
     http = Net::HTTP.new(uri.host, uri.port)
@@ -49,7 +50,7 @@ class WeatherService
       parsed_response = JSON.parse(response.body)
 
       {
-        temp: parsed_response.dig("current", "temp_c"),
+        temp: parsed_response.dig("current", "temp_f"),
         high: parsed_response.dig("forecast", "forecastday", 0, "day", "maxtemp_f"),
         low: parsed_response.dig("forecast", "forecastday", 0, "day", "mintemp_f")
       }

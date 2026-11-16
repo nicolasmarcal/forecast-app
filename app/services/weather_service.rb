@@ -2,22 +2,28 @@ require "net/http"
 require "json"
 
 class WeatherService
+  include ZipCodeNormalizable
+
+  CACHE_TTL = 30.minutes
+  RACE_CONDITION_TTL = 10.seconds
+
   def initialize(zip_code)
-    @zip_code = zip_code
+    @zip_code = normalize_zip_code(zip_code).to_s
   end
 
   def call
-    cache_key = "weather-#{@zip_code}"
+    cache_key = "weather:#{@zip_code}"
 
-    is_cached = Rails.cache.exist?(cache_key)
+    from_cache = true
 
-    data = Rails.cache.fetch(cache_key, expires_in: 30.minutes) do
+    data = Rails.cache.fetch(cache_key, expires_in: CACHE_TTL, race_condition_ttl: RACE_CONDITION_TTL) do
+      from_cache = false
       fetch_from_api
     end
 
     {
       data: data,
-      from_cache: is_cached,
+      from_cache: from_cache,
       error: nil,
       zip_code: @zip_code
     }

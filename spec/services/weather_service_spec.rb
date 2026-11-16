@@ -57,5 +57,28 @@ RSpec.describe WeatherService do
         end
       end
     end
+
+    context "when handling cache normalization and concurrency", :vcr do
+      it "normalizes equivalent inputs to hit the same cache key" do
+        first_result = described_class.new("10001").call
+        expect(first_result[:from_cache]).to be_falsey
+
+        second_result = described_class.new("  10001  ").call
+        expect(second_result[:from_cache]).to be_truthy
+        expect(second_result[:zip_code]).to eq("10001")
+      end
+
+      it "configures race_condition_ttl to prevent cache stampedes" do
+        allow(Rails.cache).to receive(:fetch).and_call_original
+
+        service.call
+
+        expect(Rails.cache).to have_received(:fetch).with(
+          "weather:10001",
+          expires_in: 30.minutes,
+          race_condition_ttl: 10.seconds
+        )
+      end
+    end
   end
 end

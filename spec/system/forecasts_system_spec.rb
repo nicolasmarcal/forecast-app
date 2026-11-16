@@ -40,7 +40,7 @@ RSpec.describe "Forecasts System", type: :system do
     fill_in "Type your zip code here", with: "10001"
     click_on "Search"
 
-    expect(page).to have_text("It wasn't possible to get forecast: Timeout error.")
+    expect(page).to have_text("Weather service timed out. Please try again later.")
   end
 
   it "shows error message when there's no zip code" do

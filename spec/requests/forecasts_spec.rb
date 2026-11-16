@@ -2,7 +2,8 @@ require 'rails_helper'
 
 RSpec.describe "Forecasts", type: :request do
   before { Rails.cache.clear }
-  describe "POST /forecast" do
+
+  describe "Turbo Stream Format (POST /forecast)" do
     context "with valid parameters", :vcr do
       it "returns a successful turbo stream response" do
         post forecast_path, params: { forecast_request: { zip_code: "10001" } }, as: :turbo_stream
@@ -14,7 +15,7 @@ RSpec.describe "Forecasts", type: :request do
     end
 
     context "with invalid parameters" do
-      it "renders unprocessable entity (422)" do
+      it "renders unprocessable content (422)" do
         post forecast_path, params: { forecast_request: { zip_code: "" } }, as: :turbo_stream
 
         expect(response).to have_http_status(:unprocessable_content)
@@ -25,7 +26,7 @@ RSpec.describe "Forecasts", type: :request do
   describe "JSON API (POST /forecast)" do
     let(:api_headers) { { "Accept" => "application/json", "User-Agent" => "curl/8.1.2" } }
 
-    context "POST /forecast with valid JSON body", :vcr do
+    context "with valid JSON body", :vcr do
       it "returns 200 OK with the complete forecast JSON payload" do
         post forecast_path,
              params: { zip_code: "10001" }.to_json,
@@ -47,15 +48,41 @@ RSpec.describe "Forecasts", type: :request do
 
     context "with invalid parameters" do
       it "returns 422 Unprocessable Content with validation errors" do
-        post forecast_path, params: { zip_code: "" }, headers: api_headers
+        post forecast_path,
+             params: { zip_code: "" }.to_json,
+             headers: api_headers.merge("Content-Type" => "application/json")
 
         expect(response).to have_http_status(:unprocessable_content)
         expect(response.parsed_body["errors"]).to be_present
       end
     end
+
+    context "when upstream Weather API fails" do
+      it "returns 429 Too Many Requests when rate limited" do
+        stub_request(:get, /api.weatherapi.com/).to_return(status: 429)
+
+        post forecast_path,
+             params: { zip_code: "10001" }.to_json,
+             headers: api_headers.merge("Content-Type" => "application/json")
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.parsed_body["error"]).to include("rate limit")
+      end
+
+      it "returns 504 Gateway Timeout when upstream times out" do
+        stub_request(:get, /api.weatherapi.com/).to_timeout
+
+        post forecast_path,
+             params: { zip_code: "10001" }.to_json,
+             headers: api_headers.merge("Content-Type" => "application/json")
+
+        expect(response).to have_http_status(:gateway_timeout)
+        expect(response.parsed_body["error"]).to include("timed out")
+      end
+    end
   end
 
-  describe "JSON API (POST /forecast)" do
+  describe "HTML Format (GET & POST /forecast)" do
     context "GET /" do
       it "renders the search form" do
         get root_path

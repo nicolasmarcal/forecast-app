@@ -1,6 +1,12 @@
 class ForecastsController < ApplicationController
+  protect_from_forgery with: :null_session, if: -> { request.format.json? }
+
   def new
     @forecast_request = ForecastRequest.new
+  end
+
+  def show
+    create
   end
 
   def create
@@ -23,19 +29,13 @@ class ForecastsController < ApplicationController
     @forecast_data = WeatherService.new(@forecast_request.zip_code).call
 
     respond_to do |format|
-      format.turbo_stream
-      format.html { render :new }
+      format.turbo_stream { render :create, status: @forecast_data.http_status }
+      format.html { render :new, status: @forecast_data.http_status }
       format.json do
-        if @forecast_data[:error].present?
-          render json: { error: @forecast_data[:error] }, status: :bad_gateway
+        if @forecast_data.success?
+          render json: serialize_forecast(@forecast_data), status: :ok
         else
-          render json: {
-            zip_code: @forecast_data[:zip_code],
-            temperature: @forecast_data.dig(:data, :temp),
-            high: @forecast_data.dig(:data, :high),
-            low: @forecast_data.dig(:data, :low),
-            from_cache: @forecast_data[:from_cache]
-          }, status: :ok
+          render json: { error: @forecast_data.error_message }, status: @forecast_data.http_status
         end
       end
     end
@@ -49,5 +49,15 @@ class ForecastsController < ApplicationController
     else
       params.permit(:zip_code)
     end
+  end
+
+  def serialize_forecast(result)
+    {
+      zip_code: result.zip_code,
+      temperature: result.temperature,
+      high: result.high,
+      low: result.low,
+      from_cache: result.from_cache
+    }
   end
 end

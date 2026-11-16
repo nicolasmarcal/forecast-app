@@ -1,75 +1,43 @@
-require "net/http"
-require "json"
-
 class WeatherService
   include ZipCodeNormalizable
 
   CACHE_TTL = 30.minutes
   RACE_CONDITION_TTL = 10.seconds
 
-  def initialize(zip_code)
+  def initialize(zip_code, client: WeatherApiClient.new, cache: Rails.cache)
     @zip_code = normalize_zip_code(zip_code).to_s
+    @client = client
+    @cache = cache
   end
 
   def call
-    cache_key = "weather:#{@zip_code}"
-
     from_cache = true
 
-    data = Rails.cache.fetch(cache_key, expires_in: CACHE_TTL, race_condition_ttl: RACE_CONDITION_TTL) do
+    payload = @cache.fetch(cache_key, expires_in: CACHE_TTL, race_condition_ttl: RACE_CONDITION_TTL) do
       from_cache = false
-      fetch_from_api
+      @client.fetch(@zip_code)
     end
 
-    {
-      data: data,
-      from_cache: from_cache,
-      error: nil,
-      zip_code: @zip_code
-    }
-  rescue StandardError => e
-    { data: nil, from_cache: false, error: "It wasn't possible to get forecast: #{e.message}" }
+    ForecastResult.success(
+      zip_code: @zip_code,
+      temperature: payload[:temp],
+      high: payload[:high],
+      low: payload[:low],
+      from_cache: from_cache
+    )
+  rescue WeatherApiClient::LocationNotFoundError => e
+    ForecastResult.failure(zip_code: @zip_code, error_message: e.message, http_status: :unprocessable_content)
+  rescue WeatherApiClient::RateLimitError => e
+    ForecastResult.failure(zip_code: @zip_code, error_message: e.message, http_status: :too_many_requests)
+  rescue WeatherApiClient::TimeoutError => e
+    ForecastResult.failure(zip_code: @zip_code, error_message: e.message, http_status: :gateway_timeout)
+  rescue WeatherApiClient::MalformedResponseError, WeatherApiClient::UpstreamError => e
+    ForecastResult.failure(zip_code: @zip_code, error_message: e.message, http_status: :bad_gateway)
   end
 
   private
 
-  def fetch_from_api
-    api_config = Rails.application.credentials.weather_api
-
-    uri = URI(api_config[:base_url])
-    uri.query = URI.encode_www_form({
-                                      key: api_config[:key],
-                                      q: @zip_code,
-                                      days: 1
-                                    })
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = (uri.scheme == "https")
-
-    http.open_timeout = 3
-    http.read_timeout = 5
-
-    request = Net::HTTP::Get.new(uri)
-    response = http.request(request)
-
-    case response
-    when Net::HTTPSuccess
-      parsed_response = JSON.parse(response.body)
-
-      {
-        temp: parsed_response.dig("current", "temp_f"),
-        high: parsed_response.dig("forecast", "forecastday", 0, "day", "maxtemp_f"),
-        low: parsed_response.dig("forecast", "forecastday", 0, "day", "mintemp_f")
-      }
-    when Net::HTTPTooManyRequests
-      raise "API rate limit exceeded. Please try again later."
-    when Net::HTTPNotFound, Net::HTTPBadRequest
-      raise "Invalid zip code or location not found."
-    else
-      raise "Error calling API: #{response.code}."
-    end
-  rescue Net::OpenTimeout, Net::ReadTimeout
-    raise "Timeout error."
-  rescue SocketError, EOFError, SystemCallError => e
-    raise "Error calling API: #{e.message}"
+  def cache_key
+    "weather:#{@zip_code}"
   end
 end

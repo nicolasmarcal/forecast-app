@@ -63,4 +63,13 @@ RSpec.describe "Forecasts System", type: :system do
 
     expect(page).not_to have_text("Zip code can't be blank")
   end
+
+  it "normalizes zip code", :vcr do
+    visit root_path
+
+    fill_in "Type your zip code here", with: "10 0 01"
+    click_on "Search"
+
+    expect(page).to have_text("Result for: 10001")
+  end
 end

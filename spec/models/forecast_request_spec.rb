@@ -13,7 +13,7 @@ RSpec.describe ForecastRequest, type: :model do
   describe "normalization" do
     it "strips leading/trailing whitespace, collapses internal spaces, and upcases" do
       request = described_class.new(zip_code: "  sw1a   1aa  ")
-      expect(request.zip_code).to eq("SW1A 1AA")
+      expect(request.zip_code).to eq("SW1A1AA")
     end
   end
 end

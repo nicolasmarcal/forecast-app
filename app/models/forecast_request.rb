@@ -7,7 +7,8 @@ class ForecastRequest
 
   validates :zip_code, presence: true
 
-  def zip_code=(value)
-    super(normalize_zip_code(value))
+  def initialize(attributes = {})
+    super
+    self.zip_code = normalize_zip_code(zip_code)
   end
 end
